@@ -1,0 +1,177 @@
+[
+    {
+        "phrase": "OOO",
+        "translation": "不在办公室 (Out Of Office)",
+        "level": "B1",
+        "category": "abbreviation",
+        "context": "邮件自动回复或日历状态"
+    },
+    {
+        "phrase": "EOD",
+        "translation": "今日结束前 (End Of Day)",
+        "level": "B1",
+        "category": "abbreviation",
+        "context": "截止时间：Please send by EOD."
+    },
+    {
+        "phrase": "COB",
+        "translation": "下班前 (Close Of Business)",
+        "level": "B1",
+        "category": "abbreviation",
+        "context": "截止时间：Submit by COB today."
+    },
+    {
+        "phrase": "ETA",
+        "translation": "预计到达时间 (Estimated Time of Arrival)",
+        "level": "B1",
+        "category": "abbreviation",
+        "context": "项目/文件什么时候能好"
+    },
+    {
+        "phrase": "KPI",
+        "translation": "关键绩效指标 (Key Performance Indicator)",
+        "level": "B2",
+        "category": "management",
+        "context": "绩效考核核心指标"
+    },
+    {
+        "phrase": "OKR",
+        "translation": "目标与关键结果 (Objectives and Key Results)",
+        "level": "B2",
+        "category": "management",
+        "context": "谷歌等科技公司常用的管理工具"
+    },
+    {
+        "phrase": "ROI",
+        "translation": "投资回报率 (Return On Investment)",
+        "level": "B2",
+        "category": "finance",
+        "context": "做这件事划不划算"
+    },
+    {
+        "phrase": "FYI",
+        "translation": "供你参考 (For Your Information)",
+        "level": "A2",
+        "category": "email",
+        "context": "转发邮件时常用"
+    },
+    {
+        "phrase": "TBD",
+        "translation": "待定 (To Be Determined)",
+        "level": "B1",
+        "category": "planning",
+        "context": "会议时间/地点还没定"
+    },
+    {
+        "phrase": "ASAP",
+        "translation": "尽快 (As Soon As Possible)",
+        "level": "A2",
+        "category": "urgency",
+        "context": "越快越好"
+    },
+    {
+        "phrase": "SOP",
+        "translation": "标准操作程序 (Standard Operating Procedure)",
+        "level": "B2",
+        "category": "operations",
+        "context": "做事的标准流程"
+    },
+    {
+        "phrase": "NDA",
+        "translation": "保密协议 (Non-Disclosure Agreement)",
+        "level": "B2",
+        "category": "legal",
+        "context": "谈合作前先签这个"
+    },
+    {
+        "phrase": "PIP",
+        "translation": "绩效改进计划 (Performance Improvement Plan)",
+        "level": "C1",
+        "category": "hr",
+        "context": "其实就是劝退预警"
+    },
+    {
+        "phrase": "PTO",
+        "translation": "带薪休假 (Paid Time Off)",
+        "level": "B1",
+        "category": "hr",
+        "context": "请假时用"
+    },
+    {
+        "phrase": "B2B",
+        "translation": "企业对企业 (Business to Business)",
+        "level": "B1",
+        "category": "sales",
+        "context": "客户是公司"
+    },
+    {
+        "phrase": "Lead",
+        "translation": "线索/潜在客户",
+        "level": "B1",
+        "category": "sales",
+        "context": "还没成交的客户"
+    },
+    {
+        "phrase": "Pipeline",
+        "translation": "销售漏斗/渠道",
+        "level": "B2",
+        "category": "sales",
+        "context": "你现在手里有多少单子在谈"
+    },
+    {
+        "phrase": "Cold Call",
+        "translation": "冷电话/陌生拜访",
+        "level": "B1",
+        "category": "sales",
+        "context": "给不认识的人打电话推销"
+    },
+    {
+        "phrase": "Pitch",
+        "translation": "推销/提案",
+        "level": "B2",
+        "category": "sales",
+        "context": "向客户展示产品"
+    },
+    {
+        "phrase": "Pain Point",
+        "translation": "痛点",
+        "level": "B1",
+        "category": "marketing",
+        "context": "客户最头疼的问题"
+    },
+    {
+        "phrase": "Churn Rate",
+        "translation": "流失率",
+        "level": "C1",
+        "category": "saas",
+        "context": "客户不再续费的比例"
+    },
+    {
+        "phrase": "CAC",
+        "translation": "获客成本 (Customer Acquisition Cost)",
+        "level": "C1",
+        "category": "saas",
+        "context": "拉来一个客户要花多少钱"
+    },
+    {
+        "phrase": "Value Proposition",
+        "translation": "价值主张",
+        "level": "C1",
+        "category": "marketing",
+        "context": "产品核心卖点是什么"
+    },
+    {
+        "phrase": "Deck",
+        "translation": "PPT/演示文稿",
+        "level": "B1",
+        "category": "general",
+        "context": "Send me the deck before the meeting."
+    },
+    {
+        "phrase": "Sync",
+        "translation": "同步/对齐",
+        "level": "B1",
+        "category": "meeting",
+        "context": "Let's sync up later."
+    }
+]

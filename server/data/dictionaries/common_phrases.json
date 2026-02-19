@@ -1,0 +1,142 @@
+[
+    {
+        "phrase": "get the ball rolling",
+        "translation": "开始行动/启动项目",
+        "level": "C1",
+        "category": "meeting",
+        "context": "会议开始时：Let's get the ball rolling."
+    },
+    {
+        "phrase": "the floor is yours",
+        "translation": "轮到你发言了",
+        "level": "B2",
+        "category": "presentation",
+        "context": "交接给下一位演讲者"
+    },
+    {
+        "phrase": "open the floor",
+        "translation": "开放讨论/提问",
+        "level": "B2",
+        "category": "presentation",
+        "context": "I'd like to open the floor for questions."
+    },
+    {
+        "phrase": "it is what it is",
+        "translation": "既成事实/接受现实",
+        "level": "B2",
+        "category": "general",
+        "context": "无奈接受现状"
+    },
+    {
+        "phrase": "take a look",
+        "translation": "看一下/审查",
+        "level": "A2",
+        "category": "collaboration",
+        "context": "Can you take a look at this?"
+    },
+    {
+        "phrase": "chip in",
+        "translation": "插话/贡献意见",
+        "level": "C1",
+        "category": "meeting",
+        "context": "Feel free to chip in."
+    },
+    {
+        "phrase": "stay tuned",
+        "translation": "敬请期待/保持关注",
+        "level": "B2",
+        "category": "announcement",
+        "context": "More updates coming soon, stay tuned."
+    },
+    {
+        "phrase": "iron things out",
+        "translation": "解决分歧/解决问题",
+        "level": "C1",
+        "category": "problem_solving",
+        "context": "We need to iron out the details."
+    },
+    {
+        "phrase": "raise the bar",
+        "translation": "提高标准",
+        "level": "B2",
+        "category": "management",
+        "context": "This product really raises the bar."
+    },
+    {
+        "phrase": "short on time",
+        "translation": "时间紧迫",
+        "level": "B1",
+        "category": "meeting",
+        "context": "We are running short on time."
+    },
+    {
+        "phrase": "zoom in on",
+        "translation": "聚焦于/深入探讨",
+        "level": "B2",
+        "category": "analysis",
+        "context": "Let's zoom in on the Q3 numbers."
+    },
+    {
+        "phrase": "hang in there",
+        "translation": "撑住/坚持下去",
+        "level": "B2",
+        "category": "encouragement",
+        "context": "Project is tough, but hang in there."
+    },
+    {
+        "phrase": "spot on",
+        "translation": "完全正确/精准",
+        "level": "C1",
+        "category": "feedback",
+        "context": "Your analysis was spot on."
+    },
+    {
+        "phrase": "on the same page",
+        "translation": "达成共识/理解一致",
+        "level": "B2",
+        "category": "alignment",
+        "context": "Just want to make sure we are on the same page."
+    },
+    {
+        "phrase": "touch base",
+        "translation": "联系/碰一下",
+        "level": "B2",
+        "category": "communication",
+        "context": "Let's touch base next week."
+    },
+    {
+        "phrase": "reach out",
+        "translation": "主动联系",
+        "level": "B2",
+        "category": "communication",
+        "context": "Feel free to reach out directly."
+    },
+    {
+        "phrase": "circle back",
+        "translation": "回头再说/后续跟进",
+        "level": "B2",
+        "category": "meeting",
+        "context": "Let's circle back to this item later."
+    },
+    {
+        "phrase": "deep dive",
+        "translation": "深入分析",
+        "level": "B2",
+        "category": "analysis",
+        "context": "We need to do a deep dive on this issue."
+    },
+    {
+        "phrase": "game changer",
+        "translation": "颠覆性的事物",
+        "level": "C1",
+        "category": "strategy",
+        "context": "This new feature is a game changer."
+    },
+    {
+        "phrase": "low hanging fruit",
+        "translation": "容易实现的目标",
+        "level": "C1",
+        "category": "strategy",
+        "context": "Let's go after the low hanging fruit first."
+    }
+]

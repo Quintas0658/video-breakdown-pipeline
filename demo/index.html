@@ -1,0 +1,810 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>视频拆解 Pipeline — Interactive Demo</title>
+  <meta name="description" content="Video Breakdown Pipeline: Transform YouTube videos into structured bilingual learning materials.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Noto+Sans+SC:wght@300;400;500;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-primary: #0a0e1a;
+      --bg-secondary: #111827;
+      --bg-card: #1a2035;
+      --bg-card-hover: #1e2640;
+      --bg-glass: rgba(26, 32, 53, 0.7);
+      --text-primary: #f1f5f9;
+      --text-secondary: #94a3b8;
+      --text-muted: #64748b;
+      --accent-blue: #3b82f6;
+      --accent-blue-glow: rgba(59, 130, 246, 0.15);
+      --accent-purple: #8b5cf6;
+      --accent-purple-glow: rgba(139, 92, 246, 0.15);
+      --accent-orange: #f59e0b;
+      --accent-orange-glow: rgba(245, 158, 11, 0.1);
+      --accent-green: #10b981;
+      --accent-green-glow: rgba(16, 185, 129, 0.1);
+      --accent-red: #ef4444;
+      --accent-pink: #ec4899;
+      --border: rgba(148, 163, 184, 0.08);
+      --border-accent: rgba(59, 130, 246, 0.2);
+      --gradient-hero: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 50%, #ec4899 100%);
+      --gradient-card: linear-gradient(135deg, rgba(59,130,246,0.08), rgba(139,92,246,0.05));
+      --shadow-lg: 0 20px 60px rgba(0,0,0,0.4);
+      --radius: 16px;
+      --radius-sm: 10px;
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'Inter', 'Noto Sans SC', sans-serif;
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      line-height: 1.7;
+      overflow-x: hidden;
+    }
+    code, pre, .mono {
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    /* ─── Animated BG ─── */
+    .bg-mesh {
+      position: fixed; inset: 0; z-index: -1; pointer-events: none;
+      background:
+        radial-gradient(ellipse 800px 400px at 20% 20%, rgba(59,130,246,0.08), transparent),
+        radial-gradient(ellipse 600px 600px at 80% 60%, rgba(139,92,246,0.06), transparent),
+        radial-gradient(ellipse 500px 400px at 50% 90%, rgba(236,72,153,0.05), transparent);
+    }
+
+    /* ─── Hero ─── */
+    .hero {
+      text-align: center;
+      padding: 80px 24px 60px;
+      position: relative;
+    }
+    .hero-badge {
+      display: inline-flex; align-items: center; gap: 8px;
+      padding: 6px 16px; border-radius: 100px;
+      background: var(--accent-blue-glow);
+      border: 1px solid var(--border-accent);
+      font-size: 13px; font-weight: 500; color: var(--accent-blue);
+      margin-bottom: 24px;
+      animation: fadeInUp 0.6s ease;
+    }
+    .hero-badge .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent-green); animation: pulse 2s infinite; }
+    .hero h1 {
+      font-size: clamp(2rem, 5vw, 3.5rem);
+      font-weight: 800;
+      background: var(--gradient-hero);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+      background-clip: text;
+      margin-bottom: 16px;
+      animation: fadeInUp 0.6s ease 0.1s both;
+    }
+    .hero p {
+      font-size: 18px; color: var(--text-secondary); max-width: 600px; margin: 0 auto 40px;
+      animation: fadeInUp 0.6s ease 0.2s both;
+    }
+
+    /* ─── Architecture Diagram ─── */
+    .arch-section {
+      max-width: 900px; margin: 0 auto; padding: 0 24px 60px;
+    }
+    .section-title {
+      font-size: 14px; font-weight: 600; text-transform: uppercase; letter-spacing: 2px;
+      color: var(--accent-blue); margin-bottom: 32px; text-align: center;
+    }
+    .arch-flow {
+      display: flex; flex-direction: column; align-items: center; gap: 0;
+    }
+    .arch-node {
+      background: var(--bg-card); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 20px 28px;
+      width: 100%; max-width: 520px;
+      transition: all 0.3s ease;
+      cursor: default;
+      opacity: 0; animation: fadeInUp 0.5s ease forwards;
+    }
+    .arch-node:hover {
+      border-color: var(--border-accent);
+      background: var(--bg-card-hover);
+      transform: translateY(-2px);
+      box-shadow: 0 8px 30px rgba(59,130,246,0.08);
+    }
+    .arch-node .node-icon { font-size: 24px; margin-bottom: 8px; }
+    .arch-node .node-title {
+      font-size: 16px; font-weight: 700; margin-bottom: 4px;
+    }
+    .arch-node .node-desc { font-size: 13px; color: var(--text-secondary); }
+    .arch-node .node-model {
+      display: inline-block; margin-top: 8px; padding: 3px 10px;
+      border-radius: 6px; font-size: 11px; font-weight: 600;
+      font-family: 'JetBrains Mono', monospace;
+    }
+    .model-gemini { background: rgba(59,130,246,0.12); color: #60a5fa; }
+    .model-openai { background: rgba(16,185,129,0.12); color: #34d399; }
+    .model-claude { background: rgba(245,158,11,0.12); color: #fbbf24; }
+    .arch-arrow {
+      width: 2px; height: 36px;
+      background: linear-gradient(to bottom, var(--accent-blue), var(--accent-purple));
+      border-radius: 2px;
+      position: relative;
+      opacity: 0; animation: fadeIn 0.4s ease forwards;
+    }
+    .arch-arrow::after {
+      content: ''; position: absolute; bottom: -5px; left: 50%; transform: translateX(-50%);
+      border: 5px solid transparent; border-top-color: var(--accent-purple);
+    }
+
+    /* ─── Demo Section ─── */
+    .demo-section {
+      max-width: 1100px; margin: 0 auto; padding: 60px 24px 80px;
+    }
+    .demo-header {
+      text-align: center; margin-bottom: 40px;
+    }
+    .demo-header h2 {
+      font-size: 28px; font-weight: 700; margin-bottom: 8px;
+    }
+    .demo-header p { color: var(--text-secondary); }
+
+    /* Input Panel */
+    .input-panel {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 20px;
+      margin-bottom: 32px;
+    }
+    @media (max-width: 768px) { .input-panel { grid-template-columns: 1fr; } }
+    .input-card {
+      background: var(--bg-card); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 24px;
+      transition: border-color 0.3s;
+    }
+    .input-card:hover { border-color: var(--border-accent); }
+    .input-card .card-label {
+      display: flex; align-items: center; gap: 8px;
+      font-size: 12px; font-weight: 600; text-transform: uppercase;
+      letter-spacing: 1.5px; color: var(--text-muted); margin-bottom: 12px;
+    }
+    .input-card textarea, .input-card .persona-display {
+      width: 100%; background: var(--bg-secondary); border: 1px solid var(--border);
+      border-radius: var(--radius-sm); padding: 14px; color: var(--text-primary);
+      font-family: 'JetBrains Mono', monospace; font-size: 12.5px;
+      line-height: 1.6; resize: none;
+    }
+    .input-card textarea { height: 200px; outline: none; }
+    .input-card textarea:focus { border-color: var(--accent-blue); }
+    .persona-display {
+      height: 200px; overflow-y: auto;
+    }
+    .persona-display h4 { font-family: 'Inter', 'Noto Sans SC', sans-serif; font-size: 14px; color: var(--accent-purple); margin-bottom: 8px; }
+    .persona-display li { margin-left: 16px; margin-bottom: 2px; }
+
+    /* Run Button */
+    .run-btn-wrapper { text-align: center; margin-bottom: 40px; }
+    .run-btn {
+      display: inline-flex; align-items: center; gap: 10px;
+      padding: 14px 36px; border: none; border-radius: 100px;
+      background: var(--gradient-hero);
+      color: #fff; font-size: 16px; font-weight: 700;
+      cursor: pointer; position: relative; overflow: hidden;
+      transition: transform 0.2s, box-shadow 0.3s;
+    }
+    .run-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 30px rgba(59,130,246,0.3);
+    }
+    .run-btn:active { transform: translateY(0); }
+    .run-btn.running {
+      pointer-events: none; opacity: 0.85;
+    }
+    .run-btn .spinner {
+      width: 18px; height: 18px; border: 2px solid rgba(255,255,255,0.3);
+      border-top-color: #fff; border-radius: 50%; display: none;
+      animation: spin 0.7s linear infinite;
+    }
+    .run-btn.running .spinner { display: inline-block; }
+    .run-btn.running .btn-icon { display: none; }
+
+    /* Output Panels */
+    .output-panels {
+      display: none;
+      flex-direction: column; gap: 28px;
+    }
+    .output-panels.visible { display: flex; }
+
+    .output-card {
+      background: var(--bg-card); border: 1px solid var(--border);
+      border-radius: var(--radius); overflow: hidden;
+      opacity: 0; transform: translateY(20px);
+      transition: opacity 0.6s ease, transform 0.6s ease;
+    }
+    .output-card.visible { opacity: 1; transform: translateY(0); }
+    .output-card .card-header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 16px 24px; border-bottom: 1px solid var(--border);
+      background: var(--gradient-card);
+    }
+    .card-header .header-left {
+      display: flex; align-items: center; gap: 10px;
+    }
+    .card-header .step-badge {
+      padding: 4px 12px; border-radius: 8px; font-size: 12px; font-weight: 700;
+      font-family: 'JetBrains Mono', monospace;
+    }
+    .step-badge.step1 { background: rgba(59,130,246,0.15); color: #60a5fa; }
+    .step-badge.step2 { background: rgba(139,92,246,0.15); color: #a78bfa; }
+    .card-header .model-tag {
+      padding: 4px 10px; border-radius: 6px; font-size: 11px;
+      font-family: 'JetBrains Mono', monospace;
+      background: rgba(16,185,129,0.1); color: #34d399;
+    }
+    .output-body {
+      padding: 24px; font-size: 14px; line-height: 1.85;
+      max-height: 600px; overflow-y: auto;
+    }
+    .output-body h2 { font-size: 20px; font-weight: 700; color: var(--accent-blue); margin: 24px 0 12px; }
+    .output-body h2:first-child { margin-top: 0; }
+    .output-body h3 { font-size: 16px; font-weight: 600; color: var(--accent-purple); margin: 20px 0 8px; }
+    .output-body p { margin-bottom: 12px; color: var(--text-secondary); }
+    .output-body strong { color: var(--text-primary); }
+    .output-body em { color: var(--accent-orange); font-style: normal; }
+    .output-body ul, .output-body ol { margin: 8px 0 12px 20px; color: var(--text-secondary); }
+    .output-body li { margin-bottom: 4px; }
+    .output-body code {
+      background: rgba(59,130,246,0.1); color: #93c5fd;
+      padding: 2px 7px; border-radius: 5px; font-size: 12.5px;
+    }
+    .output-body pre {
+      background: var(--bg-secondary); border: 1px solid var(--border);
+      border-radius: var(--radius-sm); padding: 16px; margin: 12px 0;
+      overflow-x: auto; font-size: 12.5px; color: #93c5fd;
+    }
+    .output-body blockquote {
+      border-left: 3px solid var(--accent-purple);
+      padding: 8px 16px; margin: 12px 0;
+      background: var(--accent-purple-glow);
+      border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+      color: var(--text-secondary);
+    }
+    .output-body table {
+      width: 100%; border-collapse: collapse; margin: 12px 0;
+      font-size: 13px;
+    }
+    .output-body th {
+      background: var(--bg-secondary); padding: 10px 14px;
+      text-align: left; font-weight: 600; border-bottom: 1px solid var(--border);
+    }
+    .output-body td {
+      padding: 10px 14px; border-bottom: 1px solid var(--border);
+      color: var(--text-secondary);
+    }
+
+    /* Progress Log */
+    .progress-log {
+      background: var(--bg-secondary); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 20px; margin-bottom: 28px;
+      font-family: 'JetBrains Mono', monospace; font-size: 13px;
+      display: none; max-height: 220px; overflow-y: auto;
+    }
+    .progress-log.visible { display: block; }
+    .log-line {
+      padding: 3px 0; opacity: 0; animation: fadeIn 0.3s ease forwards;
+    }
+    .log-line .timestamp { color: var(--text-muted); margin-right: 8px; }
+    .log-line .icon { margin-right: 4px; }
+
+    /* ─── Stats Strip ─── */
+    .stats-strip {
+      display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px;
+      max-width: 900px; margin: 0 auto; padding: 0 24px 60px;
+    }
+    @media (max-width: 768px) { .stats-strip { grid-template-columns: repeat(2, 1fr); } }
+    .stat-card {
+      background: var(--bg-card); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 20px; text-align: center;
+      transition: all 0.3s;
+    }
+    .stat-card:hover { border-color: var(--border-accent); transform: translateY(-2px); }
+    .stat-val { font-size: 32px; font-weight: 800; background: var(--gradient-hero); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+    .stat-label { font-size: 12px; color: var(--text-muted); margin-top: 4px; }
+
+    /* ─── Footer ─── */
+    footer {
+      text-align: center; padding: 40px 24px;
+      color: var(--text-muted); font-size: 13px;
+      border-top: 1px solid var(--border);
+    }
+    footer a { color: var(--accent-blue); text-decoration: none; }
+
+    /* ─── Scrollbar ─── */
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--text-muted); border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: var(--text-secondary); }
+
+    /* ─── Animations ─── */
+    @keyframes fadeInUp { from { opacity: 0; transform: translateY(15px); } to { opacity: 1; transform: translateY(0); } }
+    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    @keyframes typing { from { width: 0; } to { width: 100%; } }
+  </style>
+</head>
+<body>
+  <div class="bg-mesh"></div>
+
+  <!-- ═══ HERO ═══ -->
+  <section class="hero">
+    <div class="hero-badge"><span class="dot"></span> Interactive Demo — 无需 API Key</div>
+    <h1>🎬 视频拆解 Pipeline</h1>
+    <p>把英文 YouTube 视频自动拆解成结构化的双语学习笔记，让非母语用户同时学到专业技能和语言表达</p>
+  </section>
+
+  <!-- ═══ ARCHITECTURE ═══ -->
+  <section class="arch-section">
+    <div class="section-title">⚙️ Pipeline 架构</div>
+    <div class="arch-flow">
+      <div class="arch-node" style="animation-delay: 0.1s">
+        <div class="node-icon">📥</div>
+        <div class="node-title">输入：YouTube Transcript + 用户画像</div>
+        <div class="node-desc">视频文字稿 + 「外贸小白」等用户画像定义痛点和需求</div>
+      </div>
+      <div class="arch-arrow" style="animation-delay: 0.2s"></div>
+      <div class="arch-node" style="animation-delay: 0.3s">
+        <div class="node-icon">🧠</div>
+        <div class="node-title">Step 1: Layer 0 — 价值桥分析</div>
+        <div class="node-desc">用 Thinking 模型分析"这个视频和目标用户有什么关系"</div>
+        <span class="node-model model-gemini">gemini-2.5-pro</span>
+        <span class="node-model model-openai">gpt-4o fallback</span>
+        <span class="node-model model-claude">claude-sonnet fallback</span>
+      </div>
+      <div class="arch-arrow" style="animation-delay: 0.4s"></div>
+      <div class="arch-node" style="animation-delay: 0.5s">
+        <div class="node-icon">📊</div>
+        <div class="node-title">Step 2: 4-Layer Breakdown</div>
+        <div class="node-desc">
+          Layer 1 🔤 表达 → Layer 2 💡 策略 → Layer 3 🌍 文化 → Layer 4 🔄 迁移
+        </div>
+        <span class="node-model model-gemini">gemini-2.5-pro</span>
+        <span class="node-model model-claude">claude-sonnet fallback</span>
+        <span class="node-model model-openai">gpt-4o fallback</span>
+      </div>
+      <div class="arch-arrow" style="animation-delay: 0.6s"></div>
+      <div class="arch-node" style="animation-delay: 0.7s">
+        <div class="node-icon">📝</div>
+        <div class="node-title">输出：Markdown 拆解 + Excalidraw 白板笔记</div>
+        <div class="node-desc">结构化学习文档 + 手绘风格可视化笔记，可直接用作视频脚本底稿</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══ STATS ═══ -->
+  <div class="stats-strip">
+    <div class="stat-card"><div class="stat-val">4</div><div class="stat-label">拆解层级</div></div>
+    <div class="stat-card"><div class="stat-val">3</div><div class="stat-label">AI 模型 Fallback</div></div>
+    <div class="stat-card"><div class="stat-val">2</div><div class="stat-label">Pipeline Steps</div></div>
+    <div class="stat-card"><div class="stat-val">∞</div><div class="stat-label">用户画像扩展</div></div>
+  </div>
+
+  <!-- ═══ DEMO ═══ -->
+  <section class="demo-section" id="demo">
+    <div class="demo-header">
+      <h2>🚀 试一试 Pipeline</h2>
+      <p>内置样本数据 — 点击运行即可体验完整流程（模拟输出）</p>
+    </div>
+
+    <div class="input-panel">
+      <!-- Transcript -->
+      <div class="input-card">
+        <div class="card-label">
+          <span>📄</span> YouTube Transcript（样本片段）
+        </div>
+        <textarea id="transcriptInput" spellcheck="false">When you make a cold call, the first thing you need to understand is that you are not selling. You are not pitching. You are starting a conversation. Most sales reps get on the phone and they immediately go into pitch mode. "Hi, my name is John, I'm calling from XYZ company, we provide..." — and the prospect hangs up.
+
+Here's what you should do instead. Lead with a problem statement. Something like: "Hey, I noticed that companies in your space often struggle with getting replies to their outreach emails. Is that something you're dealing with too?"
+
+Now you're not selling. You're showing empathy. You're asking a question. And most importantly, you're giving the prospect a reason to keep talking.
+
+The biggest mistake I see is treating cold calls like a monologue. It should be a dialogue. Ask questions. Listen. And remember — your tone matters more than your script. If you sound nervous, the prospect feels it. If you sound confident and relaxed, they'll stay on the line.</textarea>
+      </div>
+      <!-- Persona -->
+      <div class="input-card">
+        <div class="card-label">
+          <span>👤</span> 用户画像：外贸 0-3 年小白
+        </div>
+        <div class="persona-display">
+          <h4>📋 基本信息</h4>
+          <ul>
+            <li>经验: 0-3 年外贸经验</li>
+            <li>英语水平: 中级（能读文档，听力和口语弱）</li>
+            <li>主要沟通工具: Cold email, WhatsApp, LinkedIn, 展会</li>
+          </ul>
+          <h4 style="margin-top:12px">🔥 核心痛点</h4>
+          <ul>
+            <li>📧 写好开发信不敢发，怕被拒绝</li>
+            <li>📢 一开口就推产品 — 然后被忽略</li>
+            <li>😰 被拒绝就崩 — "Not interested" 就怀疑人生</li>
+            <li>📞 不知道怎么打 cold call</li>
+            <li>🗣️ 能写模板，但一打电话就慌</li>
+          </ul>
+          <h4 style="margin-top:12px">🎯 学习目标</h4>
+          <ul>
+            <li>提高开发信回复率</li>
+            <li>敢打 cold call / 发 WhatsApp</li>
+            <li>说出"像老手"的英文</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <!-- Run Button -->
+    <div class="run-btn-wrapper">
+      <button class="run-btn" id="runBtn" onclick="runPipeline()">
+        <span class="btn-icon">▶</span>
+        <span class="spinner"></span>
+        <span class="btn-text">运行 Pipeline</span>
+      </button>
+    </div>
+
+    <!-- Progress Log -->
+    <div class="progress-log" id="progressLog"></div>
+
+    <!-- Output -->
+    <div class="output-panels" id="outputPanels">
+      <!-- Step 1 Output -->
+      <div class="output-card" id="step1Card">
+        <div class="card-header">
+          <div class="header-left">
+            <span class="step-badge step1">STEP 1</span>
+            <span>Layer 0 — 价值桥分析</span>
+          </div>
+          <span class="model-tag">gemini/gemini-2.5-pro</span>
+        </div>
+        <div class="output-body" id="step1Output"></div>
+      </div>
+
+      <!-- Step 2 Output -->
+      <div class="output-card" id="step2Card">
+        <div class="card-header">
+          <div class="header-left">
+            <span class="step-badge step2">STEP 2</span>
+            <span>4-Layer Breakdown + 交付物</span>
+          </div>
+          <span class="model-tag">gemini/gemini-2.5-pro</span>
+        </div>
+        <div class="output-body" id="step2Output"></div>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    <p>Video Breakdown Pipeline © 2026 · Built with 🧠 Gemini + Claude + GPT</p>
+    <p style="margin-top:6px"><a href="https://github.com" target="_blank">GitHub</a> · Designed for professionals who learn from English videos</p>
+  </footer>
+
+  <script>
+    // ─── Simulated Output Data ───
+    const STEP1_RESULT = `## 一句话价值
+
+这期视频直接回答了你心里那个最大的问题：**cold call 到底是干什么的？** 你一直觉得打电话 = 推销 = 让人讨厌，但这个视频告诉你 —— cold call 的本质是**开启一次对话**，不是背一段推销词。
+
+## 痛点映射
+
+### 痛点 1：写好开发信/WhatsApp 消息，鼠标悬在发送键上不敢点
+
+你怕什么？怕被拒绝，对吧？但你有没有想过 —— 你怕的不是被拒绝，你怕的是"我一开口他就知道我是来推销的"。这个视频里有一句话特别精准：**"You are not selling. You are starting a conversation."（你不是在卖东西，你是在开始一段对话。）**
+
+当你把心态从"我要卖给他"切换成"我想问他一个问题"，那个发送按钮就没那么可怕了。
+
+### 痛点 2：一开口就 "We are a professional manufacturer..."，然后客户就没了
+
+视频里说这叫 **pitch mode** —— 一种推销模式。你一张嘴就自我介绍 + 推产品，客户的防御机制瞬间启动，心里想的是"又一个推销的"。
+
+取而代之的做法是：**Lead with a problem statement（用问题开头）**。比如："I noticed companies in your space often struggle with getting replies to their outreach emails. Is that something you're dealing with too?"
+
+你不用说你是谁、你卖什么。你只需要说出他**正在经历的困难**，他就会想继续听下去。
+
+### 痛点 3：客户说 "Not interested" 就怀疑人生
+
+这期视频没有直接教你怎么处理拒绝，但它传递了一个更重要的信息：**如果你被拒绝了，很可能不是因为产品不行、也不是你不行 —— 而是你的打开方式不对。** 你用"推销模式"打开，对方当然会条件反射地拒绝。
+
+### 痛点 4：一到打电话就脑子空白、紧张到语无伦次
+
+视频最后那段话直接戳中你：**"Your tone matters more than your script. If you sound nervous, the prospect feels it."（你的语气比你的脚本更重要。如果你听起来紧张，对方能感受到。）** 
+
+你一直在背话术、练脚本，但问题可能不在词，在你的状态。
+
+## 深层 insight
+
+这期视频最颠覆的一个观点是：**Cold call 不是 monologue（独白），是 dialogue（对话）。** 
+
+大部分外贸新人打 cold call 的方式是"背好一段话然后一口气说完"。但真正有效的方式是 —— 问问题、听回答、再接着聊。你不需要准备一整页的话术，你只需要准备一个好问题。
+
+## 明天就做
+
+**打开你电脑里那封一直没发的开发信，把第一句话从 "We are a professional manufacturer of..." 改成一个痛点问题。** 比如："I noticed that many [客户行业] companies struggle with [一个具体问题]. Is that something you're seeing too?" 然后，按发送。`;
+
+    const STEP2_RESULT = `## 1. 这期视频和你有什么关系
+
+你是不是有过这样的经历？
+
+找到一个潜在客户的联系方式，兴冲冲写好一封英文开发信，然后 —— 就放在那了。鼠标在发送按钮上悬了 3 秒，最后还是点了关闭。
+
+或者你终于鼓起勇气打了一个 cold call，电话接通的那一秒，脑子一片空白。你开口就是 "Hello, this is [名字] from [公司], we are a professional manufacturer of..."，对面直接挂了。
+
+这不是因为你英语不好，也不是因为你的产品不行。这个视频会告诉你：**是你把 cold call 理解错了。**
+
+---
+
+## 2. "一开口就推产品" — 为什么你总被挂电话
+
+### 你的现实
+你写好一段自我介绍，背得滚瓜烂熟，打电话过去一字不差地念出来。对方沉默 2 秒，说 "I'm not interested, thanks"，挂了。你心想：是我英语说得不好吗？
+
+### 认知重构
+不是你英语不好，是你一开口就进入了 **pitch mode（推销模式）**。客户的大脑有一个自动防御机制 —— 只要听到"推销味"，就会本能地想挂掉。
+
+### 具体做法
+
+原视频教的方法叫 **Lead with a problem statement（用痛点问题开头）**：
+
+**🔤 关键表达**
+
+| 英文 | 中文 | 语感说明 |
+|:---|:---|:---|
+| "I noticed that..." | "我注意到..." | 比 "I want to tell you" 好 100 倍，暗示你做过功课 |
+| "companies in your space" | "你们这个行业的公司" | **in your space** 是非常地道的商务说法，比 "in your industry" 更随意自然 |
+| "Is that something you're dealing with too?" | "这也是你正在面对的吗？" | 这是一个 **开放式问题**，邀请对方说话 |
+
+**💡 策略解析**
+
+这不是随便问的一个问题。它用了一个心理学技巧叫 **social proof（社会认同）**："companies in your space" = "你的同行们都有这个问题"。当对方听到同行也在挣扎，他的防御会降低，因为他觉得"你懂我的处境"。
+
+**🌍 文化差异注意**
+
+在美国商务文化中，开门见山地问一个问题是很正常的。但如果你的客户是德国人，他们可能更习惯先有正式的自我介绍。日本客户则绝对不能一开始就问问题 —— 这会被认为是不礼貌的。
+
+**✅ 适用场景**
+- Cold call 开场白
+- LinkedIn message 第一句
+- 展会上第一次搭话
+
+**❌ 不适用场景**
+- 已经有过联系的客户
+- 正式的 email（email 需要更多上下文）
+
+### 🔄 你的外贸版本
+
+\`\`\`
+模板（英文）:
+"Hi [Name], I noticed that a lot of [行业] companies 
+struggle with [具体问题, e.g. getting replies to cold emails / 
+finding the right buyers at trade shows]. 
+Is that something you're experiencing too?"
+
+示例（假设你卖包装材料）:
+"Hi Sarah, I noticed that a lot of food packaging companies 
+struggle with finding sustainable materials that don't increase costs. 
+Is that something you're dealing with too?"
+\`\`\`
+
+---
+
+## 3. 深层洞察
+
+这个视频最深层的洞察是：**Tone > Script（语气 > 脚本）。**
+
+> "Your tone matters more than your script. If you sound nervous, the prospect feels it. If you sound confident and relaxed, they'll stay on the line."
+
+你花了 3 天背话术，但真正决定电话成败的不是你说了什么 —— 是你的**声音状态**。紧张的人说什么都像推销，放松的人随便说什么都像在聊天。
+
+对你来说，这意味着：与其再改 10 遍脚本，不如先练习用**平静的语气**说出第一句话。
+
+---
+
+## 4. 即用工具包
+
+### 📋 速查卡 — Cold Call 核心句型
+
+\`\`\`
+┌──────────────────────────────────────────────┐
+│  Cold Call 速查卡 · 外贸版                    │
+│──────────────────────────────────────────────│
+│                                              │
+│  ❌ 不要这样开头:                             │
+│  "Hi, I'm [name] from [company],             │
+│   we are a professional manufacturer of..."  │
+│                                              │
+│  ✅ 这样开头:                                │
+│  "Hi [Name], I noticed that companies        │
+│   in your space often struggle with [问题].  │
+│   Is that something you're dealing with?"    │
+│                                              │
+│  🎯 关键原则:                                │
+│  · 不推销，问问题 (dialogue, not monologue)  │
+│  · 先说痛点，再说解决方案                     │
+│  · 语气 > 脚本 (tone > script)               │
+│                                              │
+│  📌 万能句型:                                │
+│  · "I noticed that..." (表示你做过功课)       │
+│  · "Is that something you're seeing too?"    │
+│  · "companies in your space" (=你的同行)      │
+│                                              │
+└──────────────────────────────────────────────┘
+\`\`\`
+
+### ❌✅ Mistake Map
+
+| ❌ 常见做法 | ✅ 正确做法 | 为什么 |
+|:---|:---|:---|
+| 一开口就自我介绍 | 用痛点问题开头 | 降低对方防御 |
+| 背好一段话念出来 | 准备一个好问题，然后听 | Cold call = dialogue |
+| 反复改脚本、练措辞 | 练习放松的语气和状态 | Tone > Script |
+| "We are professional..." | "I noticed that..." | 做过功课 vs 群发 |
+| 被拒绝就不敢再打 | 换一个开头方式再试 | 被拒绝的是方式，不是你 |
+
+### ⚡ 明天就做
+
+**打开你电脑里那封没发的开发信，把第一句话从自我介绍改成一个痛点问题。** 不求完美，就用这个模板：
+
+> "I noticed that [客户行业] companies often struggle with [一个问题]. Is that something you're dealing with?"
+
+然后按发送。就这一件事。
+
+### 📖 延伸阅读
+
+- **SPIN Selling** (Neil Rackham) — 视频里"问问题而不是推销"的理念来源
+- **The Challenger Sale** — 另一个关于"用洞察开启对话"的方法论
+- **Fanatical Prospecting** (Jeb Blount) — 专门讲 cold call 心态和节奏`;
+
+    // ─── Pipeline Simulation ───
+    let isRunning = false;
+
+    function addLog(message, icon = '📍') {
+      const log = document.getElementById('progressLog');
+      const now = new Date();
+      const ts = `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}:${String(now.getSeconds()).padStart(2,'0')}`;
+      const line = document.createElement('div');
+      line.className = 'log-line';
+      line.innerHTML = `<span class="timestamp">[${ts}]</span><span class="icon">${icon}</span> ${message}`;
+      log.appendChild(line);
+      log.scrollTop = log.scrollHeight;
+    }
+
+    function sleep(ms) { return new Promise(resolve => setTimeout(resolve, ms)); }
+
+    // Simple markdown-to-HTML renderer
+    function renderMarkdown(md) {
+      let html = md;
+      // Code blocks
+      html = html.replace(/```([^`]*?)```/gs, (_, code) => `<pre>${code.trim()}</pre>`);
+      // Inline code
+      html = html.replace(/`([^`]+)`/g, '<code>$1</code>');
+      // Tables
+      html = html.replace(/^\|(.+)\|$/gm, (match) => {
+        return match;
+      });
+      // Convert table blocks
+      const lines = html.split('\n');
+      let result = [];
+      let inTable = false;
+      let headerDone = false;
+      for (let i = 0; i < lines.length; i++) {
+        const line = lines[i].trim();
+        if (line.startsWith('|') && line.endsWith('|')) {
+          if (!inTable) {
+            result.push('<table>');
+            inTable = true;
+            headerDone = false;
+          }
+          if (line.match(/^\|[\s\-:]+\|$/)) {
+            headerDone = true;
+            continue;
+          }
+          const cells = line.split('|').filter(c => c !== '');
+          const tag = !headerDone ? 'th' : 'td';
+          result.push('<tr>' + cells.map(c => `<${tag}>${c.trim()}</${tag}>`).join('') + '</tr>');
+          if (!headerDone) headerDone = true;
+        } else {
+          if (inTable) { result.push('</table>'); inTable = false; headerDone = false; }
+          result.push(lines[i]);
+        }
+      }
+      if (inTable) result.push('</table>');
+      html = result.join('\n');
+      // Headers
+      html = html.replace(/^### (.+)$/gm, '<h3>$1</h3>');
+      html = html.replace(/^## (.+)$/gm, '<h2>$1</h2>');
+      // Bold
+      html = html.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+      // Italic / emphasis
+      html = html.replace(/\*([^*]+)\*/g, '<em>$1</em>');
+      // Blockquotes
+      html = html.replace(/^> (.+)$/gm, '<blockquote>$1</blockquote>');
+      // Merge consecutive blockquotes
+      html = html.replace(/<\/blockquote>\n<blockquote>/g, '<br>');
+      // Unordered lists
+      html = html.replace(/^- (.+)$/gm, '<li>$1</li>');
+      html = html.replace(/(<li>.*<\/li>\n?)+/gs, (match) => `<ul>${match}</ul>`);
+      // Horizontal rules
+      html = html.replace(/^---$/gm, '<hr style="border:none;border-top:1px solid var(--border);margin:20px 0">');
+      // Paragraphs
+      html = html.replace(/\n\n/g, '</p><p>');
+      html = '<p>' + html + '</p>';
+      html = html.replace(/<p>\s*<(h[23]|ul|ol|table|pre|hr|blockquote)/g, '<$1');
+      html = html.replace(/<\/(h[23]|ul|ol|table|pre|hr|blockquote)>\s*<\/p>/g, '</$1>');
+      return html;
+    }
+
+    async function runPipeline() {
+      if (isRunning) return;
+      isRunning = true;
+
+      const btn = document.getElementById('runBtn');
+      const log = document.getElementById('progressLog');
+      const panels = document.getElementById('outputPanels');
+      const step1Card = document.getElementById('step1Card');
+      const step2Card = document.getElementById('step2Card');
+
+      btn.classList.add('running');
+      btn.querySelector('.btn-text').textContent = '运行中...';
+      log.innerHTML = '';
+      log.classList.add('visible');
+      panels.classList.remove('visible');
+      step1Card.classList.remove('visible');
+      step2Card.classList.remove('visible');
+
+      // Simulate pipeline
+      addLog('Pipeline 启动', '🎬');
+      await sleep(500);
+      addLog('📋 用户画像: 外贸 0-3 年小白', '📋');
+      await sleep(300);
+      const transcript = document.getElementById('transcriptInput').value;
+      addLog(`📄 Transcript 长度: ${transcript.length} 字符`, '📄');
+      await sleep(500);
+
+      addLog('────────────────────────────', '');
+      addLog('Step 1: Layer 0 — 价值桥分析', '🧠');
+      await sleep(400);
+      addLog('🤖 [Step 1] 尝试 gemini/gemini-2.5-pro...', '🔄');
+      await sleep(1800);
+      addLog('✅ [Step 1] gemini/gemini-2.5-pro 成功', '✅');
+      await sleep(300);
+
+      // Show Step 1
+      panels.classList.add('visible');
+      document.getElementById('step1Output').innerHTML = renderMarkdown(STEP1_RESULT);
+      setTimeout(() => step1Card.classList.add('visible'), 50);
+      await sleep(600);
+
+      addLog('────────────────────────────', '');
+      addLog('Step 2: 4-Layer Breakdown + 交付物', '📊');
+      await sleep(400);
+      addLog('🤖 [Step 2] 尝试 gemini/gemini-2.5-pro...', '🔄');
+      await sleep(2500);
+      addLog('✅ [Step 2] gemini/gemini-2.5-pro 成功', '✅');
+      await sleep(300);
+
+      // Show Step 2
+      document.getElementById('step2Output').innerHTML = renderMarkdown(STEP2_RESULT);
+      setTimeout(() => step2Card.classList.add('visible'), 50);
+      await sleep(400);
+
+      addLog('════════════════════════════', '');
+      addLog('✅ Pipeline 完成!', '🎉');
+      addLog('Layer 0:   output/20260218_step1_layer0.md', '📁');
+      addLog('Breakdown: output/20260218_step2_breakdown.md', '📁');
+      addLog('模型: Step1=gemini/gemini-2.5-pro, Step2=gemini/gemini-2.5-pro', '🤖');
+
+      btn.classList.remove('running');
+      btn.querySelector('.btn-text').textContent = '重新运行';
+      isRunning = false;
+
+      // Scroll to output
+      setTimeout(() => {
+        document.getElementById('outputPanels').scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }, 200);
+    }
+  </script>
+</body>
+</html>

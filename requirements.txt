@@ -1,0 +1,16 @@
+# Video Breakdown Pipeline
+requests>=2.31.0
+python-dotenv>=1.0.0
+
+# Web Server
+fastapi>=0.115.0
+uvicorn>=0.34.0
+sse-starlette>=2.0.0
+
+# YouTube 字幕提取
+youtube-transcript-api>=0.6.0
+
+# Model APIs (install what you need)
+# google-generativeai>=0.8.0   # Gemini — using REST API directly
+# openai>=1.0.0                # OpenAI
+# anthropic>=0.40.0            # Claude

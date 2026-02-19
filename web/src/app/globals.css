@@ -1,0 +1,156 @@
+@import "tailwindcss";
+
+/* ─── Morandi Warm Color Palette ─────────────────────────────────────────── */
+:root {
+  /* Backgrounds */
+  --background: #f5f0ea;        /* Warm oatmeal */
+  --card: #fdfcfb;              /* Ivory white */
+  --card-hover: #f9f6f2;        /* Light cream */
+
+  /* Borders */
+  --border: #e8dfd6;            /* Warm beige */
+  --border-hover: #d4c4b6;      /* Darker beige */
+
+  /* Text */
+  --foreground: #3a3229;        /* Deep warm brown */
+  --muted: #8b7e70;             /* Gray brown */
+  --muted-light: #bfb5a8;       /* Light gray brown */
+
+  /* Morandi accent colors */
+  --accent-pink: #d8b5a5;       /* Dusty pink */
+  --accent-orange: #d9a88f;     /* Caramel/almond */
+  --accent-blue: #a4b8c4;       /* Misty blue */
+  --accent-green: #b5c4a8;      /* Olive green */
+  --accent-purple: #c4b5c9;     /* Mauve */
+
+  /* Functional colors (low saturation) */
+  --success: #b8c4a8;           /* Soft olive */
+  --warning: #e6c5a0;           /* Warm apricot */
+  --error: #d8a5a0;             /* Dusty red */
+
+  /* Mouse glow position */
+  --mouse-x: 50%;
+  --mouse-y: 50%;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+/* ─── Base ───────────────────────────────────────────────────────────────── */
+html {
+  color-scheme: light;
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-geist-sans, Arial, Helvetica, sans-serif);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ─── Global Mouse Glow (Warm Morandi Glow) ─────────────────────────────── */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  background: radial-gradient(
+    600px circle at var(--mouse-x) var(--mouse-y),
+    rgba(217, 168, 143, 0.08) 0%,    /* Warm caramel glow */
+    transparent 70%
+  );
+}
+
+/* ─── Scrollbar ──────────────────────────────────────────────────────────── */
+.overflow-y-auto::-webkit-scrollbar {
+  width: 4px;
+}
+.overflow-y-auto::-webkit-scrollbar-track {
+  background: transparent;
+}
+.overflow-y-auto::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 2px;
+}
+.overflow-y-auto::-webkit-scrollbar-thumb:hover {
+  background: var(--border-hover);
+}
+
+/* ─── Animation Keyframes ─────────────────────────────────────────────────── */
+@keyframes fadeSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes pulse-glow {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(255,255,255,0.08); }
+  50%       { box-shadow: 0 0 0 4px rgba(255,255,255,0.04); }
+}
+
+@keyframes spin-smooth {
+  to { transform: rotate(360deg); }
+}
+
+/* ─── Utility Animation Classes ───────────────────────────────────────────── */
+.animate-fade-slide {
+  animation: fadeSlideIn 0.3s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.25s ease forwards;
+}
+
+/* ─── Tooltip Animation ────────────────────────────────────────────────────── */
+.tooltip-enter {
+  animation: fadeSlideIn 0.15s ease forwards;
+  transform-origin: bottom center;
+}
+
+/* ─── Tab Content Transition ──────────────────────────────────────────────── */
+.tab-content-enter {
+  animation: fadeSlideIn 0.2s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+/* ─── Active Transcript Line Glow ─────────────────────────────────────────── */
+.transcript-active {
+  position: relative;
+}
+.transcript-active::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 8px;
+  background: linear-gradient(90deg, rgba(217, 168, 143, 0.06) 0%, transparent 100%);
+  pointer-events: none;
+}
+
+/* ─── Input Focus Glow ────────────────────────────────────────────────────── */
+.input-glow:focus {
+  outline: none;
+  box-shadow: 0 0 0 1px var(--accent-orange),
+              0 0 12px rgba(217, 168, 143, 0.15);
+}
+
+/* ─── Card Hover Border Glow ─────────────────────────────────────────────── */
+.card-hover {
+  transition: border-color 0.2s ease;
+}
+.card-hover:hover {
+  border-color: var(--border-hover);
+}

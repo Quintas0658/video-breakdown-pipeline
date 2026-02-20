@@ -4,9 +4,10 @@ import { useState, useCallback, useRef } from "react";
 import YouTubePlayer, { seekTo } from "./components/YouTubePlayer";
 import TranscriptPanel from "./components/TranscriptPanel";
 import AnalysisPanel from "./components/AnalysisPanel";
+import DeckPanel from "./components/DeckPanel";
 import TabBar from "./components/TabBar";
 import UrlInput from "./components/UrlInput";
-import { fetchTranscript, startAnalysis, generateToc, generateContextNotes, generateHighlights } from "@/lib/api";
+import { fetchTranscript, startAnalysis, generateToc, generateContextNotes, startHighlightsStream, saveToDeck } from "@/lib/api";
 import type { TranscriptSegment, Chapter, ContextNote, Highlight } from "@/lib/types";
 
 function extractVideoId(url: string): string {
@@ -22,6 +23,7 @@ function extractVideoId(url: string): string {
 const TABS = [
   { id: "transcript", label: "Subtitles" },
   { id: "analysis", label: "Deep Analysis" },
+  { id: "deck", label: "My Deck" },
 ];
 
 export default function Home() {
@@ -43,6 +45,8 @@ export default function Home() {
   // Highlights state
   const [isGeneratingHighlights, setIsGeneratingHighlights] = useState(false);
   const [highlightsResult, setHighlightsResult] = useState<{ count: number; seconds: number } | null>(null);
+  const [highlightsProgress, setHighlightsProgress] = useState("");
+  const hlCountRef = useRef(0);
 
   // Analysis state
   const [layer0, setLayer0] = useState("");
@@ -77,14 +81,92 @@ export default function Home() {
       const data = await fetchTranscript(url);
       setSegments(data.segments);
 
-      // Generate ToC in background
+      // Helper: start highlights streaming (called after ToC completes)
+      const launchHighlights = (chaptersData?: Chapter[]) => {
+        setIsGeneratingHighlights(true);
+        setHighlightsResult(null);
+        setHighlightsProgress("");
+        hlCountRef.current = 0;
+        const hlStartTime = Date.now();
+        let totalChunks = chaptersData?.length || 0;
+        let completedChunks = 0;
+
+        startHighlightsStream(
+          data.segments,
+          vid,
+          chaptersData,
+          // onChunkResult — merge highlights incrementally
+          (chunkHighlights, count, chapterTitle) => {
+            hlCountRef.current += count;
+            completedChunks++;
+            if (totalChunks > 0) {
+              setHighlightsProgress(
+                chapterTitle
+                  ? `Done: ${chapterTitle} (${completedChunks}/${totalChunks})`
+                  : `${completedChunks}/${totalChunks} chunks done`
+              );
+            }
+            setSegments((prev) => {
+              const updated = [...prev];
+              for (const [segIdxStr, aiHighlights] of Object.entries(chunkHighlights)) {
+                const idx = Number(segIdxStr);
+                if (idx < 0 || idx >= updated.length || !aiHighlights.length) continue;
+                const seg = updated[idx];
+                const existing = seg.highlights || [];
+                const existingRanges = existing.map((h) => [h.start, h.end] as [number, number]);
+                const newHighlights = [...existing];
+                for (const ah of aiHighlights) {
+                  const overlaps = existingRanges.some(([s, e]) => ah.start < e && ah.end > s);
+                  if (!overlaps) {
+                    newHighlights.push(ah);
+                    existingRanges.push([ah.start, ah.end]);
+                  }
+                }
+                newHighlights.sort((a, b) => a.start - b.start);
+                updated[idx] = { ...seg, highlights: newHighlights };
+              }
+              return updated;
+            });
+          },
+          // onProgress
+          (info) => {
+            if (info.remaining_chunks !== undefined) {
+              totalChunks = info.total_chunks || totalChunks;
+              setHighlightsProgress(
+                info.cached_chunks
+                  ? `${info.cached_chunks} cached, analyzing ${info.remaining_chunks} chapters...`
+                  : `Analyzing ${info.remaining_chunks} chapters...`
+              );
+            }
+          },
+          // onDone
+          () => {
+            const elapsed = Math.round((Date.now() - hlStartTime) / 1000);
+            setHighlightsResult({ count: hlCountRef.current, seconds: elapsed });
+            setIsGeneratingHighlights(false);
+            setHighlightsProgress("");
+          },
+          // onError
+          (err) => {
+            console.warn("AI highlights streaming failed:", err);
+            setIsGeneratingHighlights(false);
+            setHighlightsProgress("");
+          },
+        );
+      };
+
+      // Generate ToC in background, then start highlights with chapter data
       setIsGeneratingToc(true);
       generateToc(data.segments, vid)
         .then((tocData) => {
           setChapters(tocData.chapters);
+          // Start highlights with chapter-based chunking
+          launchHighlights(tocData.chapters);
         })
         .catch((err) => {
           console.error("ToC generation failed:", err);
+          // Fallback: start highlights without chapters (fixed-size chunking)
+          launchHighlights();
         })
         .finally(() => {
           setIsGeneratingToc(false);
@@ -101,48 +183,6 @@ export default function Home() {
         })
         .finally(() => {
           setIsGeneratingNotes(false);
-        });
-
-      // Generate AI highlights in background (parallel with ToC + Notes)
-      setIsGeneratingHighlights(true);
-      setHighlightsResult(null);
-      const hlStartTime = Date.now();
-      generateHighlights(data.segments, vid)
-        .then((hlData: { highlights: Record<string, Highlight[]>; total: number }) => {
-          const elapsed = Math.round((Date.now() - hlStartTime) / 1000);
-          setHighlightsResult({ count: hlData.total, seconds: elapsed });
-          // Merge AI highlights into segments
-          setSegments((prev) => {
-            const updated = prev.map((seg, idx) => {
-              const aiHighlights = hlData.highlights[String(idx)];
-              if (!aiHighlights || aiHighlights.length === 0) return seg;
-
-              // Merge with existing highlights, avoiding overlaps
-              const existing = seg.highlights || [];
-              const existingRanges = existing.map((h) => [h.start, h.end] as [number, number]);
-              const newHighlights = [...existing];
-
-              for (const ah of aiHighlights) {
-                const overlaps = existingRanges.some(
-                  ([s, e]) => ah.start < e && ah.end > s
-                );
-                if (!overlaps) {
-                  newHighlights.push(ah);
-                  existingRanges.push([ah.start, ah.end]);
-                }
-              }
-
-              newHighlights.sort((a, b) => a.start - b.start);
-              return { ...seg, highlights: newHighlights };
-            });
-            return updated;
-          });
-        })
-        .catch((err) => {
-          console.warn("AI highlights generation failed:", err);
-        })
-        .finally(() => {
-          setIsGeneratingHighlights(false);
         });
 
       // Start analysis automatically
@@ -193,6 +233,10 @@ export default function Home() {
   const handlePlayerReady = useCallback((player: YT.Player) => {
     playerRef.current = player;
   }, []);
+
+  const handleSaveExpression = useCallback(async (data: Record<string, unknown>) => {
+    await saveToDeck({ ...data, video_id: videoId } as Parameters<typeof saveToDeck>[0]);
+  }, [videoId]);
 
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "100vh", background: "#f5f0ea", position: "relative", zIndex: 1 }}>
@@ -256,8 +300,10 @@ export default function Home() {
                 isGeneratingNotes={isGeneratingNotes}
                 isGeneratingHighlights={isGeneratingHighlights}
                 highlightsResult={highlightsResult}
+                highlightsProgress={highlightsProgress}
+                onSaveExpression={handleSaveExpression}
               />
-            ) : (
+            ) : activeTab === "analysis" ? (
               <AnalysisPanel
                 layer0={layer0}
                 breakdown={breakdown}
@@ -265,6 +311,8 @@ export default function Home() {
                 isLoading={isAnalyzing}
                 error={analysisError}
               />
+            ) : (
+              <DeckPanel />
             )}
           </div>
         </div>

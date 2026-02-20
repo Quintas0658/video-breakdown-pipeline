@@ -5,7 +5,7 @@ FastAPI 主应用
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from server.routers import transcript, analyze, personas
+from server.routers import transcript, analyze, personas, deck
 
 app = FastAPI(title="Video Breakdown API", version="0.1.0")
 
@@ -21,6 +21,7 @@ app.add_middleware(
 app.include_router(transcript.router)
 app.include_router(analyze.router)
 app.include_router(personas.router)
+app.include_router(deck.router)
 
 
 @app.get("/api/health")

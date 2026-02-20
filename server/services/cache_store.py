@@ -97,3 +97,57 @@ def clear_cache(video_id: str, module: str = None) -> int:
         return cursor.rowcount
     finally:
         conn.close()
+
+
+# --------------- Saved Expressions (Deck) ---------------
+
+def save_expression(data: dict) -> int:
+    """保存一个表达到词库，返回 id"""
+    conn = _get_conn()
+    try:
+        cursor = conn.execute(
+            """INSERT INTO saved_expressions
+               (phrase, register, level, frequency, translation, alternative, context_sentence, video_id, segment_start)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+            (
+                data["phrase"],
+                data.get("register"),
+                data.get("level"),
+                data.get("frequency"),
+                data.get("translation"),
+                data.get("alternative"),
+                data.get("context_sentence"),
+                data.get("video_id"),
+                data.get("segment_start"),
+            ),
+        )
+        conn.commit()
+        return cursor.lastrowid
+    finally:
+        conn.close()
+
+
+def get_saved_expressions() -> list[dict]:
+    """获取所有保存的表达，按时间倒序"""
+    conn = _get_conn()
+    conn.row_factory = sqlite3.Row
+    try:
+        rows = conn.execute(
+            "SELECT * FROM saved_expressions ORDER BY created_at DESC"
+        ).fetchall()
+        return [dict(row) for row in rows]
+    finally:
+        conn.close()
+
+
+def delete_expression(expr_id: int) -> bool:
+    """删除一个表达，返回是否成功"""
+    conn = _get_conn()
+    try:
+        cursor = conn.execute(
+            "DELETE FROM saved_expressions WHERE id = ?", (expr_id,)
+        )
+        conn.commit()
+        return cursor.rowcount > 0
+    finally:
+        conn.close()

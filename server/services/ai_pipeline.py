@@ -511,7 +511,35 @@ def generate_context_notes(transcript_with_indices: str) -> list[dict]:
         content = re.sub(r'\n?```$', '', content)
         content = content.strip()
 
-    notes = json.loads(content)
+    try:
+        notes = json.loads(content)
+    except json.JSONDecodeError as e:
+        print(f"Context notes JSON parsing failed: {str(e)[:100]}, attempting repair...")
+        notes = None
+
+        # 策略 1: 截断到最后一个完整对象 }
+        last_brace = content.rfind('}')
+        if last_brace > 0:
+            candidate = content[:last_brace+1].rstrip().rstrip(',') + ']'
+            arr_start = candidate.find('[')
+            if arr_start >= 0:
+                candidate = candidate[arr_start:]
+            try:
+                notes = json.loads(candidate)
+                print(f"Context notes JSON repaired, got {len(notes)} notes")
+            except json.JSONDecodeError:
+                pass
+
+        # 策略 2: 尾部括号修复
+        if notes is None:
+            fixed = content.rstrip().rstrip(',')
+            if not fixed.endswith(']'):
+                fixed += ']'
+            try:
+                notes = json.loads(fixed)
+                print(f"Context notes JSON repaired (bracket fix), got {len(notes)} notes")
+            except json.JSONDecodeError:
+                raise ValueError(f"Cannot repair context notes JSON: {str(e)[:200]}")
 
     # 确保 segment_index 是整数
     for note in notes:
@@ -568,7 +596,7 @@ CRITICAL JSON FORMATTING RULES:
 - The last item must NOT have a trailing comma
 
 Guidelines:
-- Be GENEROUS: aim for 15-30 expressions per 10-minute video.
+- Be THOROUGH: scan EVERY segment from start to end. Extract ALL expressions that match the criteria — no quantity limit. Do NOT stop early or skip later segments.
 - The phrase must appear EXACTLY in the segment text (will be used for string matching).
 - Don't highlight basic A1 vocabulary ("meeting", "email", "good").
 - DO highlight phrases that a Chinese professional with CET-6 would recognize but wouldn't naturally USE.
@@ -614,20 +642,35 @@ def generate_highlights(transcript_with_indices: str) -> list[dict]:
         highlights = json.loads(content)
     except json.JSONDecodeError as e:
         print(f"JSON parsing failed: {str(e)[:100]}, attempting repair...")
-        try:
-            # 尝试修复常见错误
-            # 1. 移除尾部多余的逗号
-            if content.rstrip().endswith(','):
-                content = content.rstrip().rstrip(',')
-            # 2. 找到最后一个完整的 ] 括号
-            last_bracket = content.rfind(']')
+        highlights = None
+
+        # 策略 1: 找到最后一个完整对象 }，截断并补 ]
+        last_brace = content.rfind('}')
+        if last_brace > 0:
+            candidate = content[:last_brace+1].rstrip().rstrip(',') + ']'
+            arr_start = candidate.find('[')
+            if arr_start >= 0:
+                candidate = candidate[arr_start:]
+            try:
+                highlights = json.loads(candidate)
+                print(f"JSON repaired (truncate to last complete object), got {len(highlights)} highlights")
+            except json.JSONDecodeError:
+                pass
+
+        # 策略 2: 去掉尾逗号 + 找最后的 ]
+        if highlights is None:
+            fixed = content.rstrip().rstrip(',')
+            last_bracket = fixed.rfind(']')
             if last_bracket > 0:
-                content = content[:last_bracket+1]
-            highlights = json.loads(content)
-            print(f"JSON repaired successfully, got {len(highlights)} highlights")
-        except Exception as repair_error:
-            # 修复失败，抛异常让调用方的 retry 逻辑可以重试
-            raise ValueError(f"JSON repair failed for highlights: {str(repair_error)[:100]}")
+                fixed = fixed[:last_bracket+1]
+            try:
+                highlights = json.loads(fixed)
+                print(f"JSON repaired (trailing bracket), got {len(highlights)} highlights")
+            except json.JSONDecodeError:
+                pass
+
+        if highlights is None:
+            raise ValueError(f"JSON repair failed for highlights: {str(e)[:100]}")
 
     # 确保 segment_index 是整数
     for h in highlights:

@@ -56,3 +56,17 @@ export interface ContextNotesResponse {
   notes: ContextNote[];
   total: number;
 }
+
+export interface SavedExpression {
+  id: number;
+  phrase: string;
+  register?: string;
+  level?: string;
+  frequency?: string;
+  translation: string;
+  alternative?: string | null;
+  context_sentence?: string;
+  video_id?: string;
+  segment_start?: number;
+  created_at: string;
+}

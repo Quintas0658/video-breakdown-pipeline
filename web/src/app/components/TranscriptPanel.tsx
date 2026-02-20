@@ -15,6 +15,8 @@ interface TranscriptPanelProps {
   isGeneratingNotes: boolean;
   isGeneratingHighlights?: boolean;
   highlightsResult?: { count: number; seconds: number } | null;
+  highlightsProgress?: string;
+  onSaveExpression?: (data: Record<string, unknown>) => Promise<void>;
 }
 
 function formatTime(seconds: number): string {
@@ -23,7 +25,10 @@ function formatTime(seconds: number): string {
   return `${m}:${s.toString().padStart(2, "0")}`;
 }
 
-function renderHighlightedText(segment: TranscriptSegment) {
+function renderHighlightedText(
+  segment: TranscriptSegment,
+  onSave?: (data: Record<string, unknown>) => Promise<void>,
+) {
   const { text, highlights } = segment;
   if (!highlights || highlights.length === 0) {
     return <span>{text}</span>;
@@ -48,6 +53,8 @@ function renderHighlightedText(segment: TranscriptSegment) {
         register={h.register}
         frequency={h.frequency}
         alternative={h.alternative}
+        onSave={onSave}
+        contextSentence={text}
       />
     );
     lastIndex = h.end;
@@ -69,6 +76,7 @@ function SegmentRow({
   notes,
   expandedNoteIdx,
   onToggleNote,
+  onSaveExpression,
 }: {
   seg: TranscriptSegment;
   segIndex: number;
@@ -78,6 +86,7 @@ function SegmentRow({
   notes: ContextNote[];
   expandedNoteIdx: number | null;
   onToggleNote: (idx: number) => void;
+  onSaveExpression?: (data: Record<string, unknown>) => Promise<void>;
 }) {
   const hasNotes = notes.length > 0;
   const isNoteExpanded = expandedNoteIdx === segIndex;
@@ -118,7 +127,7 @@ function SegmentRow({
             flex: 1,
           }}
         >
-          {renderHighlightedText(seg)}
+          {renderHighlightedText(seg, onSaveExpression)}
         </span>
         {hasNotes && (
           <ContextNoteIcon
@@ -145,6 +154,7 @@ function ChapterSection({
   notesBySegment,
   expandedNoteIdx,
   onToggleNote,
+  onSaveExpression,
 }: {
   chapter: Chapter;
   segments: TranscriptSegment[];
@@ -157,6 +167,7 @@ function ChapterSection({
   notesBySegment: Map<number, ContextNote[]>;
   expandedNoteIdx: number | null;
   onToggleNote: (idx: number) => void;
+  onSaveExpression?: (data: Record<string, unknown>) => Promise<void>;
 }) {
   const [startIdx, endIdx] = chapter.segmentRange;
   const chapterSegments = segments.slice(startIdx, endIdx + 1);
@@ -233,6 +244,7 @@ function ChapterSection({
                 notes={notesBySegment.get(globalIdx) || []}
                 expandedNoteIdx={expandedNoteIdx}
                 onToggleNote={onToggleNote}
+                onSaveExpression={onSaveExpression}
               />
             );
           })}
@@ -252,6 +264,8 @@ export default function TranscriptPanel({
   isGeneratingNotes,
   isGeneratingHighlights,
   highlightsResult,
+  highlightsProgress,
+  onSaveExpression,
 }: TranscriptPanelProps) {
   const activeRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -371,7 +385,7 @@ export default function TranscriptPanel({
               <span>💡 {contextNotes.length} notes</span>
             ) : null}
             {isGeneratingHighlights ? (
-              <span>Analyzing expressions... ({hlElapsed}s)</span>
+              <span>{highlightsProgress || "Analyzing expressions..."} ({hlElapsed}s)</span>
             ) : highlightsResult ? (
               <span style={{ color: "#7a9e7a" }}>✓ {highlightsResult.count} expressions ({highlightsResult.seconds}s)</span>
             ) : null}
@@ -411,6 +425,7 @@ export default function TranscriptPanel({
             notesBySegment={notesBySegment}
             expandedNoteIdx={expandedNoteIdx}
             onToggleNote={toggleNote}
+            onSaveExpression={onSaveExpression}
           />
         ))
       ) : (
@@ -428,6 +443,7 @@ export default function TranscriptPanel({
               notes={notesBySegment.get(i) || []}
               expandedNoteIdx={expandedNoteIdx}
               onToggleNote={toggleNote}
+              onSaveExpression={onSaveExpression}
             />
           );
         })

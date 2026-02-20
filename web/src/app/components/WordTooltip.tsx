@@ -12,6 +12,16 @@ interface WordTooltipProps {
   frequency?: string;
   alternative?: string | null;
   category?: string; // legacy compat
+  onSave?: (data: {
+    phrase: string;
+    register?: string;
+    level?: string;
+    frequency?: string;
+    translation: string;
+    alternative?: string | null;
+    context_sentence?: string;
+  }) => Promise<void>;
+  contextSentence?: string;
 }
 
 // Register-based colors (primary system in v1.2)
@@ -159,10 +169,23 @@ function TooltipPortal({
   );
 }
 
-export default function WordTooltip({ phrase, translation, level, color, register, frequency, alternative }: WordTooltipProps) {
+export default function WordTooltip({ phrase, translation, level, color, register, frequency, alternative, onSave, contextSentence }: WordTooltipProps) {
   const [showTooltip, setShowTooltip] = useState(false);
+  const [saveState, setSaveState] = useState<"idle" | "saving" | "saved">("idle");
   const timeoutRef = useRef<number | null>(null);
   const anchorRef = useRef<HTMLSpanElement>(null);
+
+  const handleSave = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!onSave || saveState !== "idle") return;
+    setSaveState("saving");
+    try {
+      await onSave({ phrase, register, level, frequency, translation, alternative, context_sentence: contextSentence });
+      setSaveState("saved");
+    } catch {
+      setSaveState("idle");
+    }
+  };
 
   const handleMouseEnter = () => {
     if (timeoutRef.current) clearTimeout(timeoutRef.current);
@@ -222,11 +245,29 @@ export default function WordTooltip({ phrase, translation, level, color, registe
               ⚠ {regInfo.warning}
             </span>
           )}
-          {/* Footer: CEFR + frequency */}
-          <span style={{ display: "flex", gap: "6px", marginTop: "4px", fontSize: "10px", color: "#a09585" }}>
-            <span>{levelLabels[level] || level}</span>
-            {frequency && frequencyLabels[frequency] && (
-              <span>· {frequencyLabels[frequency]}</span>
+          {/* Footer: CEFR + frequency + save */}
+          <span style={{ display: "flex", gap: "6px", marginTop: "4px", fontSize: "10px", color: "#a09585", alignItems: "center", justifyContent: "space-between" }}>
+            <span style={{ display: "flex", gap: "6px" }}>
+              <span>{levelLabels[level] || level}</span>
+              {frequency && frequencyLabels[frequency] && (
+                <span>· {frequencyLabels[frequency]}</span>
+              )}
+            </span>
+            {onSave && (
+              <span
+                onClick={handleSave}
+                style={{
+                  cursor: saveState === "idle" ? "pointer" : "default",
+                  color: saveState === "saved" ? "#7a9e7a" : saveState === "saving" ? "#a09585" : "#d9a88f",
+                  transition: "color 0.15s",
+                  userSelect: "none",
+                  flexShrink: 0,
+                }}
+                onMouseEnter={(e) => { if (saveState === "idle") (e.currentTarget as HTMLElement).style.color = "#f5f0ea"; }}
+                onMouseLeave={(e) => { if (saveState === "idle") (e.currentTarget as HTMLElement).style.color = "#d9a88f"; }}
+              >
+                {saveState === "saved" ? "✓ Saved" : saveState === "saving" ? "..." : "+ Save"}
+              </span>
             )}
           </span>
         </TooltipPortal>

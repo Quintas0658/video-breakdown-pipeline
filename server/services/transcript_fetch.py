@@ -6,6 +6,11 @@ import re
 from urllib.parse import urlparse, parse_qs
 
 
+class NoCaptionsError(Exception):
+    """视频没有可用字幕"""
+    pass
+
+
 def extract_video_id(url: str) -> str:
     """从各种 YouTube URL 格式中提取 video ID"""
     # youtu.be/VIDEO_ID
@@ -59,7 +64,7 @@ def fetch_transcript(video_id: str, languages: list[str] = None) -> list[dict]:
             if found is None:
                 found = transcript_list[0] if transcript_list else None
             if found is None:
-                raise RuntimeError("No transcripts available")
+                raise NoCaptionsError("This video has no captions available")
             segments = list(found.fetch())
         except RuntimeError:
             raise

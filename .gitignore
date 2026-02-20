@@ -21,3 +21,4 @@ Thumbs.db
 
 # Output
 output/
+server/data/app.db

@@ -456,17 +456,21 @@ Given a video transcript with numbered segments, identify moments where non-nati
 
 1. **Cultural References**: Idioms, slang, cultural assumptions, humor, sarcasm, pop-culture references
 2. **Knowledge Background**: Industry jargon, frameworks, referenced people/books/concepts, unstated assumptions the speaker expects the audience to know
+3. **Social Connotation**: Tone shifts, sarcasm detection, implied attitudes, social implications that a non-native speaker would miss (e.g., "Nice job" said sarcastically)
+4. **Dialect Warning**: Regional dialect or accent-specific usage that could confuse learners (e.g., UK vs US English, Mexican vs Spain Spanish)
 
 For each segment that needs a note, provide:
 - "segment_index": The segment number (0-based integer)
-- "type": "cultural" or "knowledge"
+- "type": "cultural", "knowledge", "social_connotation", or "dialect_warning"
 - "title": A short label in the SAME language as the transcript (e.g., English title for English video)
 - "note": A concise explanation in Chinese (1-2 sentences, written for a Chinese learner)
 
 Return ONLY a valid JSON array, no other text:
 [
   {{"segment_index": 3, "type": "cultural", "title": "Chomping at the bit", "note": "这是一个英语习语，原意是马急着咬嚼子想跑，引申为'迫不及待'。"}},
-  {{"segment_index": 7, "type": "knowledge", "title": "SPIN Selling", "note": "SPIN Selling 是 Neil Rackham 提出的咨询式销售框架，通过提问发现客户需求。"}}
+  {{"segment_index": 7, "type": "knowledge", "title": "SPIN Selling", "note": "SPIN Selling 是 Neil Rackham 提出的咨询式销售框架，通过提问发现客户需求。"}},
+  {{"segment_index": 12, "type": "social_connotation", "title": "Sarcastic 'Great job'", "note": "说话人语气带有讽刺，实际意思是做得很差。注意语调和上下文。"}},
+  {{"segment_index": 15, "type": "dialect_warning", "title": "Reckon (UK)", "note": "'reckon' 在英式英语中很常见，意为'认为/觉得'，但在美式英语中较少使用。"}}
 ]
 
 Guidelines:
@@ -514,3 +518,119 @@ def generate_context_notes(transcript_with_indices: str) -> list[dict]:
         note["segment_index"] = int(note.get("segment_index", 0))
 
     return notes
+
+
+# --------------- AI 词汇高亮 ---------------
+
+HIGHLIGHTS_PROMPT = """You are an expert language coach specializing in register-aware expression detection for Chinese-speaking professionals learning from authentic video content.
+
+Your job: Identify expressions in the transcript that are valuable for learners, and classify each by its REGISTER (how/where it's used), not just its form.
+
+## Register Tag System (4 tags)
+
+🟢 **general_spoken** — Usable in any casual or semi-formal conversation. Natural and versatile.
+   Examples: "figure out", "kind of", "no worries", "makes sense"
+
+🔵 **professional_spoken** — Native speakers use this in meetings, presentations, and professional settings. THE HIGH-VALUE TARGET ZONE for career-focused learners.
+   Examples: "aligned with", "circle back", "drill down", "leverage", "move the needle", "stakeholder buy-in"
+
+🟡 **regional_cultural** — Specific to a country, region, or culture. MUST include a context note explaining which region.
+   Examples: "mate" (UK/AU), "reckon" (UK informal), "touch wood" (UK) vs "knock on wood" (US)
+
+⚪ **formal_written** — Grammatically correct but sounds stilted/unnatural in speech. Flag so learners know NOT to overuse it verbally.
+   Examples: "I concur", "henceforth", "utilize" (when "use" works fine), "aforementioned"
+
+KEY PRINCIPLE: Register must follow the VIDEO'S actual context, not a preset template. A tech review and a business meeting call for different register profiles.
+
+## 3-Layer Detection
+
+For each expression, provide:
+- "segment_index": The number shown in [brackets] before the segment text. Return this EXACT number.
+- "phrase": EXACT text as it appears in the transcript (for string matching)
+- "register": "general_spoken" | "professional_spoken" | "regional_cultural" | "formal_written"
+- "level": CEFR difficulty ("A2", "B1", "B2", or "C1")
+- "frequency": Estimated spoken frequency ("very_high" | "high" | "medium" | "low")
+- "translation": Chinese translation + usage note (1 sentence)
+- "alternative": What a basic learner would say instead (null if not applicable)
+
+Return ONLY a valid JSON array:
+[
+  {{"segment_index": 2, "phrase": "aligned with", "register": "professional_spoken", "level": "B2", "frequency": "high", "translation": "与...一致/保持同步。比 agree with 更职业化，常用于会议和邮件", "alternative": "agree with"}},
+  {{"segment_index": 5, "phrase": "circle back", "register": "professional_spoken", "level": "B2", "frequency": "high", "translation": "稍后再讨论/回头再说。职场高频用语，尤其在会议中暂时搁置话题时", "alternative": "discuss later"}},
+  {{"segment_index": 8, "phrase": "utilize", "register": "formal_written", "level": "B2", "frequency": "low", "translation": "使用。过于正式，口语中直接说 use 更自然", "alternative": "use"}}
+]
+
+CRITICAL JSON FORMATTING RULES:
+- Your response MUST be a complete, valid JSON array
+- Escape all double quotes inside string values using backslash: \"
+- Do NOT use line breaks or special characters inside string values
+- Ensure all string values are properly closed with quotes
+- The last item must NOT have a trailing comma
+
+Guidelines:
+- Be GENEROUS: aim for 15-30 expressions per 10-minute video.
+- The phrase must appear EXACTLY in the segment text (will be used for string matching).
+- Don't highlight basic A1 vocabulary ("meeting", "email", "good").
+- DO highlight phrases that a Chinese professional with CET-6 would recognize but wouldn't naturally USE.
+- Phrasal verbs are especially valuable — even advanced learners underuse them.
+- For formal_written register, emphasize that the expression is NOT recommended for speaking.
+- For regional_cultural register, ALWAYS explain which region in the translation.
+- Frequency should reflect how often native speakers use this in SPOKEN contexts (not written).
+
+## Transcript (numbered segments):
+{transcript_with_indices}"""
+
+HIGHLIGHTS_MODELS = [
+    ("gemini", "gemini-2.5-flash"),
+    ("openai", "gpt-4o-mini"),
+    ("anthropic", "claude-sonnet-4-20250514"),
+]
+
+
+def generate_highlights(transcript_with_indices: str) -> list[dict]:
+    """
+    用 AI 生成词汇高亮
+
+    transcript_with_indices: 带序号的文本，格式如 "[0] text\n[1] text\n..."
+    返回: [{"segment_index", "phrase", "category", "translation", "level", "alternative"}]
+    """
+    prompt = HIGHLIGHTS_PROMPT.format(transcript_with_indices=transcript_with_indices)
+    messages = [
+        {"role": "system", "content": "You are a vocabulary analyst for language learners. Output only valid JSON."},
+        {"role": "user", "content": prompt},
+    ]
+
+    content, model = call_with_fallback(messages, HIGHLIGHTS_MODELS, "AI Highlights")
+
+    # 解析 JSON
+    content = content.strip()
+    if content.startswith("```"):
+        content = re.sub(r'^```\w*\n?', '', content)
+        content = re.sub(r'\n?```$', '', content)
+        content = content.strip()
+
+    # 尝试解析 JSON，失败则尝试修复
+    try:
+        highlights = json.loads(content)
+    except json.JSONDecodeError as e:
+        print(f"JSON parsing failed: {str(e)[:100]}, attempting repair...")
+        try:
+            # 尝试修复常见错误
+            # 1. 移除尾部多余的逗号
+            if content.rstrip().endswith(','):
+                content = content.rstrip().rstrip(',')
+            # 2. 找到最后一个完整的 ] 括号
+            last_bracket = content.rfind(']')
+            if last_bracket > 0:
+                content = content[:last_bracket+1]
+            highlights = json.loads(content)
+            print(f"JSON repaired successfully, got {len(highlights)} highlights")
+        except Exception as repair_error:
+            # 修复失败，抛异常让调用方的 retry 逻辑可以重试
+            raise ValueError(f"JSON repair failed for highlights: {str(repair_error)[:100]}")
+
+    # 确保 segment_index 是整数
+    for h in highlights:
+        h["segment_index"] = int(h.get("segment_index", 0))
+
+    return highlights

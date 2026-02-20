@@ -6,8 +6,8 @@ import TranscriptPanel from "./components/TranscriptPanel";
 import AnalysisPanel from "./components/AnalysisPanel";
 import TabBar from "./components/TabBar";
 import UrlInput from "./components/UrlInput";
-import { fetchTranscript, startAnalysis, generateToc } from "@/lib/api";
-import type { TranscriptSegment, Chapter } from "@/lib/types";
+import { fetchTranscript, startAnalysis, generateToc, generateContextNotes, generateHighlights } from "@/lib/api";
+import type { TranscriptSegment, Chapter, ContextNote, Highlight } from "@/lib/types";
 
 function extractVideoId(url: string): string {
   try {
@@ -36,6 +36,14 @@ export default function Home() {
   const [chapters, setChapters] = useState<Chapter[]>([]);
   const [isGeneratingToc, setIsGeneratingToc] = useState(false);
 
+  // Context Notes state
+  const [contextNotes, setContextNotes] = useState<ContextNote[]>([]);
+  const [isGeneratingNotes, setIsGeneratingNotes] = useState(false);
+
+  // Highlights state
+  const [isGeneratingHighlights, setIsGeneratingHighlights] = useState(false);
+  const [highlightsResult, setHighlightsResult] = useState<{ count: number; seconds: number } | null>(null);
+
   // Analysis state
   const [layer0, setLayer0] = useState("");
   const [breakdown, setBreakdown] = useState("");
@@ -56,6 +64,7 @@ export default function Home() {
     setLoadError("");
     setSegments([]);
     setChapters([]);
+    setContextNotes([]);
     setLayer0("");
     setBreakdown("");
     setAnalysisError("");
@@ -70,7 +79,7 @@ export default function Home() {
 
       // Generate ToC in background
       setIsGeneratingToc(true);
-      generateToc(data.segments)
+      generateToc(data.segments, vid)
         .then((tocData) => {
           setChapters(tocData.chapters);
         })
@@ -79,6 +88,61 @@ export default function Home() {
         })
         .finally(() => {
           setIsGeneratingToc(false);
+        });
+
+      // Generate Context Notes in background (parallel with ToC)
+      setIsGeneratingNotes(true);
+      generateContextNotes(data.segments, vid)
+        .then((notesData) => {
+          setContextNotes(notesData.notes);
+        })
+        .catch((err) => {
+          console.warn("Context notes generation failed:", err);
+        })
+        .finally(() => {
+          setIsGeneratingNotes(false);
+        });
+
+      // Generate AI highlights in background (parallel with ToC + Notes)
+      setIsGeneratingHighlights(true);
+      setHighlightsResult(null);
+      const hlStartTime = Date.now();
+      generateHighlights(data.segments, vid)
+        .then((hlData: { highlights: Record<string, Highlight[]>; total: number }) => {
+          const elapsed = Math.round((Date.now() - hlStartTime) / 1000);
+          setHighlightsResult({ count: hlData.total, seconds: elapsed });
+          // Merge AI highlights into segments
+          setSegments((prev) => {
+            const updated = prev.map((seg, idx) => {
+              const aiHighlights = hlData.highlights[String(idx)];
+              if (!aiHighlights || aiHighlights.length === 0) return seg;
+
+              // Merge with existing highlights, avoiding overlaps
+              const existing = seg.highlights || [];
+              const existingRanges = existing.map((h) => [h.start, h.end] as [number, number]);
+              const newHighlights = [...existing];
+
+              for (const ah of aiHighlights) {
+                const overlaps = existingRanges.some(
+                  ([s, e]) => ah.start < e && ah.end > s
+                );
+                if (!overlaps) {
+                  newHighlights.push(ah);
+                  existingRanges.push([ah.start, ah.end]);
+                }
+              }
+
+              newHighlights.sort((a, b) => a.start - b.start);
+              return { ...seg, highlights: newHighlights };
+            });
+            return updated;
+          });
+        })
+        .catch((err) => {
+          console.warn("AI highlights generation failed:", err);
+        })
+        .finally(() => {
+          setIsGeneratingHighlights(false);
         });
 
       // Start analysis automatically
@@ -185,9 +249,13 @@ export default function Home() {
               <TranscriptPanel
                 segments={segments}
                 chapters={chapters}
+                contextNotes={contextNotes}
                 currentTime={currentTime}
                 onSeek={handleSeek}
                 isGeneratingToc={isGeneratingToc}
+                isGeneratingNotes={isGeneratingNotes}
+                isGeneratingHighlights={isGeneratingHighlights}
+                highlightsResult={highlightsResult}
               />
             ) : (
               <AnalysisPanel

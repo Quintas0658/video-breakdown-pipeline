@@ -1,15 +1,20 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import type { TranscriptSegment, Chapter } from "@/lib/types";
+import { useEffect, useRef, useState, useMemo } from "react";
+import type { TranscriptSegment, Chapter, ContextNote } from "@/lib/types";
 import WordTooltip from "./WordTooltip";
+import { ContextNoteIcon, ContextNoteExpanded } from "./ContextNoteCard";
 
 interface TranscriptPanelProps {
   segments: TranscriptSegment[];
   chapters: Chapter[];
+  contextNotes: ContextNote[];
   currentTime: number;
   onSeek: (time: number) => void;
   isGeneratingToc: boolean;
+  isGeneratingNotes: boolean;
+  isGeneratingHighlights?: boolean;
+  highlightsResult?: { count: number; seconds: number } | null;
 }
 
 function formatTime(seconds: number): string {
@@ -40,6 +45,9 @@ function renderHighlightedText(segment: TranscriptSegment) {
         translation={h.translation}
         level={h.level}
         color={h.color}
+        register={h.register}
+        frequency={h.frequency}
+        alternative={h.alternative}
       />
     );
     lastIndex = h.end;
@@ -54,58 +62,79 @@ function renderHighlightedText(segment: TranscriptSegment) {
 
 function SegmentRow({
   seg,
+  segIndex,
   isActive,
   activeRef,
   onSeek,
+  notes,
+  expandedNoteIdx,
+  onToggleNote,
 }: {
   seg: TranscriptSegment;
+  segIndex: number;
   isActive: boolean;
   activeRef: React.RefObject<HTMLDivElement | null>;
   onSeek: (time: number) => void;
+  notes: ContextNote[];
+  expandedNoteIdx: number | null;
+  onToggleNote: (idx: number) => void;
 }) {
+  const hasNotes = notes.length > 0;
+  const isNoteExpanded = expandedNoteIdx === segIndex;
+
   return (
-    <div
-      ref={isActive ? activeRef : null}
-      onClick={() => onSeek(seg.start)}
-      style={{
-        display: "flex",
-        gap: "10px",
-        padding: "6px 12px",
-        borderRadius: "6px",
-        cursor: "pointer",
-        marginBottom: "4px",
-        transition: "background 0.15s",
-        background: isActive ? "rgba(217,168,143,0.08)" : "transparent",
-        borderLeft: isActive ? "2px solid #d9a88f" : "2px solid transparent",
-      }}
-      onMouseEnter={(e) => {
-        if (!isActive) (e.currentTarget as HTMLElement).style.background = "rgba(217,168,143,0.04)";
-      }}
-      onMouseLeave={(e) => {
-        if (!isActive) (e.currentTarget as HTMLElement).style.background = "transparent";
-      }}
-    >
-      <span style={{ fontSize: "10px", color: "#bfb5a8", fontFamily: "var(--font-geist-mono, monospace)", marginTop: "3px", flexShrink: 0, width: "36px" }}>
-        {formatTime(seg.start)}
-      </span>
-      <span
+    <>
+      <div
+        ref={isActive ? activeRef : null}
+        onClick={() => onSeek(seg.start)}
         style={{
-          fontSize: "13px",
-          lineHeight: "1.6",
-          color: isActive ? "#3a3229" : "#6b6259",
-          fontWeight: isActive ? 500 : 400,
-          transition: "color 0.15s",
+          display: "flex",
+          gap: "10px",
+          padding: "6px 12px",
+          borderRadius: "6px",
+          cursor: "pointer",
+          marginBottom: isNoteExpanded ? "0px" : "4px",
+          transition: "background 0.15s",
+          background: isActive ? "rgba(217,168,143,0.08)" : "transparent",
+          borderLeft: isActive ? "2px solid #d9a88f" : "2px solid transparent",
+        }}
+        onMouseEnter={(e) => {
+          if (!isActive) (e.currentTarget as HTMLElement).style.background = "rgba(217,168,143,0.04)";
+        }}
+        onMouseLeave={(e) => {
+          if (!isActive) (e.currentTarget as HTMLElement).style.background = "transparent";
         }}
       >
-        {renderHighlightedText(seg)}
-      </span>
-    </div>
+        <span style={{ fontSize: "10px", color: "#bfb5a8", fontFamily: "var(--font-geist-mono, monospace)", marginTop: "3px", flexShrink: 0, width: "36px" }}>
+          {formatTime(seg.start)}
+        </span>
+        <span
+          style={{
+            fontSize: "13px",
+            lineHeight: "1.6",
+            color: isActive ? "#3a3229" : "#6b6259",
+            fontWeight: isActive ? 500 : 400,
+            transition: "color 0.15s",
+            flex: 1,
+          }}
+        >
+          {renderHighlightedText(seg)}
+        </span>
+        {hasNotes && (
+          <ContextNoteIcon
+            notes={notes}
+            onToggle={() => onToggleNote(segIndex)}
+            isExpanded={isNoteExpanded}
+          />
+        )}
+      </div>
+      {isNoteExpanded && <ContextNoteExpanded notes={notes} />}
+    </>
   );
 }
 
 function ChapterSection({
   chapter,
-  chapterIndex,
   segments,
   currentTime,
   isExpanded,
@@ -113,9 +142,11 @@ function ChapterSection({
   onToggle,
   onSeek,
   activeRef,
+  notesBySegment,
+  expandedNoteIdx,
+  onToggleNote,
 }: {
   chapter: Chapter;
-  chapterIndex: number;
   segments: TranscriptSegment[];
   currentTime: number;
   isExpanded: boolean;
@@ -123,9 +154,18 @@ function ChapterSection({
   onToggle: () => void;
   onSeek: (time: number) => void;
   activeRef: React.RefObject<HTMLDivElement | null>;
+  notesBySegment: Map<number, ContextNote[]>;
+  expandedNoteIdx: number | null;
+  onToggleNote: (idx: number) => void;
 }) {
   const [startIdx, endIdx] = chapter.segmentRange;
   const chapterSegments = segments.slice(startIdx, endIdx + 1);
+
+  // Count notes in this chapter
+  let noteCount = 0;
+  for (let i = startIdx; i <= endIdx; i++) {
+    noteCount += (notesBySegment.get(i) || []).length;
+  }
 
   return (
     <div style={{ marginBottom: "4px" }}>
@@ -150,21 +190,23 @@ function ChapterSection({
           if (!isCurrentChapter) (e.currentTarget as HTMLElement).style.background = "transparent";
         }}
       >
-        {/* Expand/collapse arrow */}
         <span style={{ fontSize: "12px", color: "#bfb5a8", marginTop: "2px", flexShrink: 0, transition: "transform 0.2s", transform: isExpanded ? "rotate(90deg)" : "rotate(0deg)", display: "inline-block" }}>
           ▶
         </span>
-        {/* Timestamp */}
         <span
           onClick={(e) => { e.stopPropagation(); onSeek(chapter.start_time); }}
           style={{ fontSize: "11px", color: "#d9a88f", fontFamily: "var(--font-geist-mono, monospace)", marginTop: "2px", flexShrink: 0, width: "36px" }}
         >
           {formatTime(chapter.start_time)}
         </span>
-        {/* Title and summary */}
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ fontSize: "13px", fontWeight: 600, color: "#3a3229", lineHeight: "1.4" }}>
             {chapter.title}
+            {noteCount > 0 && (
+              <span style={{ fontSize: "10px", color: "#a09585", fontWeight: 400, marginLeft: "8px" }}>
+                💡{noteCount}
+              </span>
+            )}
           </div>
           {chapter.summary && (
             <div style={{ fontSize: "11px", color: "#a09585", marginTop: "2px", lineHeight: "1.4" }}>
@@ -184,9 +226,13 @@ function ChapterSection({
               <SegmentRow
                 key={globalIdx}
                 seg={seg}
+                segIndex={globalIdx}
                 isActive={isActive}
                 activeRef={activeRef}
                 onSeek={onSeek}
+                notes={notesBySegment.get(globalIdx) || []}
+                expandedNoteIdx={expandedNoteIdx}
+                onToggleNote={onToggleNote}
               />
             );
           })}
@@ -199,9 +245,13 @@ function ChapterSection({
 export default function TranscriptPanel({
   segments,
   chapters,
+  contextNotes,
   currentTime,
   onSeek,
   isGeneratingToc,
+  isGeneratingNotes,
+  isGeneratingHighlights,
+  highlightsResult,
 }: TranscriptPanelProps) {
   const activeRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -209,8 +259,33 @@ export default function TranscriptPanel({
   const scrollTimeoutRef = useRef<number | null>(null);
   const [expandedChapters, setExpandedChapters] = useState<Set<number>>(new Set());
   const [showFullText, setShowFullText] = useState(false);
+  const [expandedNoteIdx, setExpandedNoteIdx] = useState<number | null>(null);
 
   const hasChapters = chapters.length > 0;
+
+  // Live elapsed timer for highlights generation
+  const [hlElapsed, setHlElapsed] = useState(0);
+  useEffect(() => {
+    if (!isGeneratingHighlights) { setHlElapsed(0); return; }
+    const t0 = Date.now();
+    const interval = setInterval(() => setHlElapsed(Math.round((Date.now() - t0) / 1000)), 1000);
+    return () => clearInterval(interval);
+  }, [isGeneratingHighlights]);
+
+  // Build a map: segmentIndex → ContextNote[]
+  const notesBySegment = useMemo(() => {
+    const map = new Map<number, ContextNote[]>();
+    for (const note of contextNotes) {
+      const existing = map.get(note.segment_index) || [];
+      existing.push(note);
+      map.set(note.segment_index, existing);
+    }
+    return map;
+  }, [contextNotes]);
+
+  const toggleNote = (idx: number) => {
+    setExpandedNoteIdx((prev) => (prev === idx ? null : idx));
+  };
 
   // Find current chapter based on playback time
   const currentChapterIdx = hasChapters
@@ -281,18 +356,26 @@ export default function TranscriptPanel({
 
   return (
     <div ref={containerRef} className="h-full overflow-y-auto" style={{ padding: "8px 12px", background: "#fdfcfb" }}>
-      {/* Mode toggle + ToC loading indicator */}
-      {(hasChapters || isGeneratingToc) && (
+      {/* Status bar */}
+      {(hasChapters || isGeneratingToc || isGeneratingNotes || isGeneratingHighlights || highlightsResult) && (
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "4px 8px", marginBottom: "8px" }}>
-          {isGeneratingToc && !hasChapters ? (
-            <span style={{ fontSize: "11px", color: "#a09585" }}>
-              Generating chapters...
-            </span>
-          ) : (
-            <span style={{ fontSize: "11px", color: "#a09585" }}>
-              {chapters.length} chapters
-            </span>
-          )}
+          <div style={{ display: "flex", gap: "12px", fontSize: "11px", color: "#a09585", flexWrap: "wrap" }}>
+            {isGeneratingToc && !hasChapters ? (
+              <span>Generating chapters...</span>
+            ) : hasChapters ? (
+              <span>{chapters.length} chapters</span>
+            ) : null}
+            {isGeneratingNotes && contextNotes.length === 0 ? (
+              <span>Generating context notes...</span>
+            ) : contextNotes.length > 0 ? (
+              <span>💡 {contextNotes.length} notes</span>
+            ) : null}
+            {isGeneratingHighlights ? (
+              <span>Analyzing expressions... ({hlElapsed}s)</span>
+            ) : highlightsResult ? (
+              <span style={{ color: "#7a9e7a" }}>✓ {highlightsResult.count} expressions ({highlightsResult.seconds}s)</span>
+            ) : null}
+          </div>
           {hasChapters && (
             <button
               onClick={() => setShowFullText(!showFullText)}
@@ -318,7 +401,6 @@ export default function TranscriptPanel({
           <ChapterSection
             key={idx}
             chapter={ch}
-            chapterIndex={idx}
             segments={segments}
             currentTime={currentTime}
             isExpanded={expandedChapters.has(idx)}
@@ -326,19 +408,26 @@ export default function TranscriptPanel({
             onToggle={() => toggleChapter(idx)}
             onSeek={onSeek}
             activeRef={activeRef}
+            notesBySegment={notesBySegment}
+            expandedNoteIdx={expandedNoteIdx}
+            onToggleNote={toggleNote}
           />
         ))
       ) : (
-        /* Full text mode (original) */
+        /* Full text mode */
         segments.map((seg, i) => {
           const isActive = currentTime >= seg.start && currentTime < seg.start + seg.duration;
           return (
             <SegmentRow
               key={i}
               seg={seg}
+              segIndex={i}
               isActive={isActive}
               activeRef={activeRef}
               onSeek={onSeek}
+              notes={notesBySegment.get(i) || []}
+              expandedNoteIdx={expandedNoteIdx}
+              onToggleNote={toggleNote}
             />
           );
         })

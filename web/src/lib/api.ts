@@ -84,12 +84,13 @@ export function startAnalysis(
 }
 
 export async function generateToc(
-  segments: { text: string; start: number; duration: number }[]
+  segments: { text: string; start: number; duration: number }[],
+  videoId?: string
 ) {
   const res = await fetch(`${API_BASE}/api/generate-toc`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ segments }),
+    body: JSON.stringify({ segments, video_id: videoId }),
   });
   if (!res.ok) {
     const err = await res.json().catch(() => ({ detail: "ToC generation failed" }));
@@ -98,13 +99,30 @@ export async function generateToc(
   return res.json();
 }
 
+export async function generateHighlights(
+  segments: { text: string; start: number; duration: number }[],
+  videoId?: string
+) {
+  const res = await fetch(`${API_BASE}/api/generate-highlights`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ segments, video_id: videoId }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ detail: "Highlights generation failed" }));
+    throw new Error(err.detail || "Failed to generate highlights");
+  }
+  return res.json();
+}
+
 export async function generateContextNotes(
-  segments: { text: string; start: number; duration: number }[]
+  segments: { text: string; start: number; duration: number }[],
+  videoId?: string
 ) {
   const res = await fetch(`${API_BASE}/api/generate-context-notes`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ segments }),
+    body: JSON.stringify({ segments, video_id: videoId }),
   });
   if (!res.ok) {
     const err = await res.json().catch(() => ({ detail: "Context notes generation failed" }));

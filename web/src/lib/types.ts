@@ -12,6 +12,10 @@ export interface Highlight {
   translation: string;
   level: string;
   color: string;
+  register?: string;
+  frequency?: string;
+  alternative?: string | null;
+  category?: string; // legacy compat
 }
 
 export interface Persona {
@@ -43,7 +47,7 @@ export interface TocResponse {
 
 export interface ContextNote {
   segment_index: number;
-  type: "cultural" | "knowledge";
+  type: "cultural" | "knowledge" | "social_connotation" | "dialect_warning";
   title: string;
   note: string;
 }
